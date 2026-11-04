@@ -53,3 +53,39 @@ jobs:
         with:
           name: CuarzoFM-Standalone-${{ matrix.name }}
           path: build/CuarzoFM_artefacts/Release/Standalone/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: art
+
+      - name: Empaquetar
+        run: |
+          mkdir -p out
+          for d in art/*; do (cd "$d" && zip -qr "../../out/$(basename "$d").zip" .); done
+          ls -la out
+
+      - name: Publicar Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Cuarzo FM v1.0.${{ github.run_number }}
+          files: out/*.zip
+          body: |
+            Binarios compilados automaticamente.
+            Windows: descomprime CuarzoFM-VST3-Windows-x64.zip y copia "Cuarzo FM.vst3" a C:\Program Files\Common Files\VST3\
+
+      - name: Guardar en rama binarios
+        run: |
+          cd out
+          git init -q -b binarios
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A && git commit -q -m "Binarios run ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" binarios
