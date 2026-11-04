@@ -1,0 +1,55 @@
+name: Compilar VST3
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows-x64
+          - os: macos-latest
+            name: macOS-Universal
+          - os: ubuntu-22.04
+            name: Linux-x64
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxcomposite-dev libxext-dev libfreetype6-dev libfontconfig1-dev
+
+      - name: Configurar
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          else
+            cmake -B build -DCMAKE_BUILD_TYPE=Release
+          fi
+
+      - name: Compilar
+        run: cmake --build build --config Release --parallel
+
+      - name: Subir VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: CuarzoFM-VST3-${{ matrix.name }}
+          path: build/CuarzoFM_artefacts/Release/VST3/
+
+      - name: Subir Standalone
+        uses: actions/upload-artifact@v4
+        with:
+          name: CuarzoFM-Standalone-${{ matrix.name }}
+          path: build/CuarzoFM_artefacts/Release/Standalone/
